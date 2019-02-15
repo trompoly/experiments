@@ -1,7 +1,6 @@
 'use strict';
 
-var AppView = Backbone.View.extend( {
-
+var AppView = Backbone.View.extend({
     el: '.app',
 
     events: {
@@ -10,129 +9,133 @@ var AppView = Backbone.View.extend( {
         'click .resolution-preset': 'onPresetClick'
     },
 
-    initialize: function () {
+    initialize: function() {
         var version = '1.0.0';
-        this.iframe = this.$el.find( '#api-frame' ).get( 0 );
-        this.client = new Sketchfab( version, this.iframe );
-        this.FPS = 15;
+        this.iframe = this.$el.find('#api-frame').get(0);
+        this.client = new Sketchfab(version, this.iframe);
+        this.FPS = 60;
 
         this.uid = null;
         this.modelInfo = null;
         this.isAnimated = false;
 
-        this._progressModel = new Backbone.Model( {
+        this._progressModel = new Backbone.Model({
             isVisible: false,
             value: 0
-        } );
-        this._progressView = new ProgressView( {
+        });
+        this._progressView = new ProgressView({
             model: this._progressModel
-        } );
+        });
     },
 
-    onLoadSceneClick: function ( e ) {
+    onLoadSceneClick: function(e) {
         var picker = new SketchfabPicker();
-        picker.pick( {
-            success: function ( model ) {
-
+        picker.pick({
+            success: function(model) {
                 this.disableControls();
 
-                if ( model.uid === this.uid ) {
-                    this.initViewer( model.uid );
+                if (model.uid === this.uid) {
+                    this.initViewer(model.uid);
                 }
 
-                if ( model.uid ) {
-                    router.navigate( 'model/' + model.uid, {
+                if (model.uid) {
+                    router.navigate('model/' + model.uid, {
                         trigger: true
-                    } );
+                    });
                 }
-
-            }.bind( this )
-        } );
+            }.bind(this)
+        });
     },
 
-    initViewer: function ( urlid ) {
-
+    initViewer: function(urlid) {
         this.uid = urlid;
 
-        this.client.init( urlid, {
+        this.client.init(urlid, {
             overrideDevicePixelRatio: 1,
             camera: 0,
-            success: function onSuccess( api ) {
+            success: function onSuccess(api) {
                 this.api = api;
                 api.start();
-                api.addEventListener( 'viewerready', function () {
-                    api.getAnimations( function ( err, animations ) {
-                        this.animations = animations;
-                        this.onViewerReady();
-                    }.bind( this ) );
-                }.bind( this ) );
-            }.bind( this ),
+                api.addEventListener(
+                    'viewerready',
+                    function() {
+                        api.getAnimations(
+                            function(err, animations) {
+                                this.animations = animations;
+                                this.onViewerReady();
+                            }.bind(this)
+                        );
+                    }.bind(this)
+                );
+            }.bind(this),
             error: function onError() {
-                console.error( 'Viewer error' );
+                console.error('Viewer error');
             }
-        } );
+        });
 
-        this.getModelInfo( urlid ).then(
-            function ( response ) {
+        this.getModelInfo(urlid).then(
+            function(response) {
                 this.modelInfo = response;
-            }.bind( this ),
-            function () {
+            }.bind(this),
+            function() {
                 this.modelInfo = null;
-            }.bind( this )
+            }.bind(this)
         );
     },
 
-    getModelInfo: function ( urlid ) {
-        return $.ajax( {
+    getModelInfo: function(urlid) {
+        return $.ajax({
             url: 'https://api.sketchfab.com/v3/models/' + urlid,
             crossDomain: true,
             dataType: 'json',
             type: 'GET'
-        } );
+        });
     },
 
-    onViewerReady: function () {
+    onViewerReady: function() {
         this.render();
     },
 
-    render: function () {
-        if ( this.animations.length > 0 ) {
+    render: function() {
+        if (this.animations.length > 0) {
             this.disableDuration();
         } else {
             this.enableDuration();
         }
 
-        if ( this.api ) {
+        if (this.api) {
             this.enableControls();
         }
     },
 
-    enableControls: function () {
-        this.$el.find( '#options-panel' ).addClass( 'active' );
+    enableControls: function() {
+        this.$el.find('#options-panel').addClass('active');
     },
 
-    disableControls: function () {
-        this.$el.find( '#options-panel' ).removeClass( 'active' );
+    disableControls: function() {
+        this.$el.find('#options-panel').removeClass('active');
     },
 
-    enableDuration: function () {
-        this.$el.find( '.field-duration' ).addClass( 'active' );
+    enableDuration: function() {
+        this.$el.find('.field-duration').addClass('active');
     },
 
-    disableDuration: function () {
-        this.$el.find( '.field-duration' ).removeClass( 'active' );
+    disableDuration: function() {
+        this.$el.find('.field-duration').removeClass('active');
     },
 
-    onRenderClick: function ( e ) {
+    onRenderClick: function(e) {
         e.preventDefault();
 
-        this._progressModel.set( 'isVisible', true );
+        this._progressModel.set('isVisible', true);
 
         var isAnimated = this.animations.length > 0;
-        var width = Math.floor( parseInt( this.$el.find( 'input[name="width"]' ).val() ) );
-        var height = Math.floor( parseInt( this.$el.find( 'input[name="height"]' ).val() ) );
-        var duration = isAnimated ? this.animations[ 0 ][ 2 ] : parseInt( this.$el.find( 'select[name="duration"]' ).val() );
-        var output = this.$el.find( 'select[name="output"]' ).val();
+        var width = Math.floor(parseInt(this.$el.find('input[name="width"]').val()));
+        var height = Math.floor(parseInt(this.$el.find('input[name="height"]').val()));
+        var duration = isAnimated
+            ? this.animations[0][2]
+            : parseFloat(this.$el.find('select[name="duration"]').val());
+        var output = this.$el.find('select[name="output"]').val();
 
         var options = {
             width: width,
@@ -142,85 +145,117 @@ var AppView = Backbone.View.extend( {
             fps: this.FPS
         };
 
-        if ( output === 'gif' ) {
-            options.callback = function ( images ) {
-                this.encodeGif( images, {
+        if (output === 'gif') {
+            options.callback = function(images) {
+                this.encodeGif(images, {
                     width: width,
                     height: height
-                } );
-            }.bind( this );
-        } else if ( output === 'webm' ) {
+                });
+            }.bind(this);
+        } else if (output === 'webm') {
             options.format = 'image/webp';
-            options.fps = 30;
-            options.callback = function ( images ) {
-                this.encodeWebm( images, {
+            options.fps = 60;
+            options.callback = function(images) {
+                this.encodeWebm(images, {
                     width: width,
                     height: height
-                } );
-            }.bind( this );
+                });
+            }.bind(this);
+        } else if (output === 'png') {
+            options.format = 'image/png';
+            options.fps = 60;
+            options.asDataURI = true;
+            options.callback = function(images) {
+                this.saveFiles(images, {
+                    width: width,
+                    height: height
+                });
+            }.bind(this);
         }
 
-        if ( isAnimated ) {
-            this.api.setCurrentAnimationByUID( this.animations[ 0 ][ 0 ] );
+        if (isAnimated) {
+            this.api.setCurrentAnimationByUID(this.animations[0][0]);
         }
-        var sequence = new window.ImageSequence( this.api, options );
-        sequence.on( 'progress', function onProgress( progress ) {
-            this._progressModel.set( 'value', progress.progress );
-        }.bind( this ) );
+        var sequence = new window.ImageSequence(this.api, options);
+        sequence.on(
+            'progress',
+            function onProgress(progress) {
+                this._progressModel.set('value', progress.progress);
+            }.bind(this)
+        );
         sequence.start();
     },
 
-    encodeGif: function ( images, options ) {
+    encodeGif: function(images, options) {
         var fps = this.FPS;
 
-        var gif = new GIF( {
+        var gif = new GIF({
             workers: 2,
             quality: 5,
             width: options.width,
             height: options.height
-        } );
+        });
         var image;
-        for ( var j = 0; j < images.length; j++ ) {
-            gif.addFrame( images[ j ], {
+        for (var j = 0; j < images.length; j++) {
+            gif.addFrame(images[j], {
                 delay: 1 / fps
-            } );
+            });
         }
-        gif.on( 'finished', function ( blob ) {
-            this.saveImage( blob, this.getFilename( '.gif' ) );
-        }.bind( this ) );
+        gif.on(
+            'finished',
+            function(blob) {
+                this.saveImage(blob, this.getFilename('.gif'));
+            }.bind(this)
+        );
         gif.render();
     },
 
-    encodeWebm: function ( images, options ) {
-        var blob = Whammy.fromImageArray( images, this.FPS );
-        var url = URL.createObjectURL( blob );
-        this.saveImage( blob, this.getFilename( '.webm' ) );
+    encodeWebm: function(images, options) {
+        var blob = Whammy.fromImageArray(images, this.FPS);
+        var url = URL.createObjectURL(blob);
+        this.saveImage(blob, this.getFilename('.webm'));
     },
 
-    getFilename: function ( extension ) {
-        if ( this.modelInfo !== null ) {
-            return this.modelInfo.name.replace( /[^a-z0-9]/gi, '_' ).toLowerCase() + extension;
+    getFilename: function(extension) {
+        if (this.modelInfo !== null) {
+            return this.modelInfo.name.replace(/[^a-z0-9]/gi, '_').toLowerCase() + extension;
         } else {
             return 'scene' + extension;
         }
     },
 
-    saveImage: function ( blob, filename ) {
-        this._progressModel.set( 'isVisible', false );
+    saveFiles(images, options) {
+        var zip = new window.JSZip();
+        var img = zip.folder(this.getFilename(''));
+        for (var j = 0; j < images.length; j++) {
+            img.file(
+                this.getFilename('.' + j + '.png'),
+                images[j].replace(/^data:image\/(png|jpg);base64,/, ''),
+                { base64: true }
+            );
+        }
+        zip.generateAsync({ type: 'blob' }).then(
+            function(content) {
+                this.saveImage(content, this.getFilename('.zip'));
+            }.bind(this)
+        );
+    },
+
+    saveImage: function(blob, filename) {
+        this._progressModel.set('isVisible', false);
         var hasSaveAs = !!window.saveAs;
-        if ( hasSaveAs ) {
-            saveAs( blob, filename );
+        if (hasSaveAs) {
+            saveAs(blob, filename);
         } else {
-            var url = ( window.webkitURL || window.URL ).createObjectURL( blob );
-            window.open( url );
+            var url = (window.webkitURL || window.URL).createObjectURL(blob);
+            window.open(url);
         }
     },
 
-    onPresetClick: function ( e ) {
+    onPresetClick: function(e) {
         e.preventDefault();
-        var target = $( e.currentTarget );
-        this.$el.find( 'input[name="width"]' ).val( target.attr( 'data-width' ) );
-        this.$el.find( 'input[name="height"]' ).val( target.attr( 'data-height' ) );
+        var target = $(e.currentTarget);
+        this.$el.find('input[name="width"]').val(target.attr('data-width'));
+        this.$el.find('input[name="height"]').val(target.attr('data-height'));
     }
-
-} );
+});
