@@ -87,7 +87,7 @@ body {
 }
 
 .options__option input:checked + span {
-    border: 4px solid white;
+    border: 4px solid Black;
 }
 .options__option span[class*='green'] {
     background: #80b845;
